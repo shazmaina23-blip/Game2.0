@@ -1,4 +1,3 @@
-
 package application; // Places the class in the application package.
 
 import java.awt.Color; // Provides colours for the game.
@@ -31,14 +30,14 @@ public class GamePanel extends JPanel { // Main game panel.
     private static final int PLAYER_H = 68; // Sets the player height.
     private static final int LEVEL_LENGTH = 1500; // Sets the progress required to finish a level.
 
-    private final GameDatabase database = new GameDatabase(); // Connects to saved game data.
+    private final GameDatabase database = new GameDatabase(); // Connects to saved game data (single shared connection).
     private final Random random = new Random(); // Generates random objects.
     private final Timer timer; // Updates the game about 60 times per second.
 
     private enum State { STORY, PLAYING, PAUSED, LEVEL_COMPLETE, GAME_OVER, VICTORY } // Defines the game screens.
     private State state = State.STORY; // Starts with the story screen.
 
-    private int level = 1; // Starts at Level 1.
+    private int level = 1; // Starts at Level 1 (replaced by the saved level in the constructor).
     private int lives = 5; // Gives the player five lives per attempt.
     private int coins; // Stores the current saved coin balance.
     private int distance; // Tracks level progress.
@@ -71,7 +70,10 @@ public class GamePanel extends JPanel { // Main game panel.
         setBackground(Color.BLACK); // Sets a fallback background colour.
 
         coins = database.getCoins(); // Loads saved coins.
+        level = Math.max(1, Math.min(5, database.getCurrentLevel())); // Loads the saved level, kept between 1 and 5.
         character = CharacterDesign.fromId(database.getEquippedCharacter()); // Loads the saved outfit.
+
+        System.out.println("Database connected! Coins: " + database.getCoins() + " | Level: " + database.getCurrentLevel()); // Confirms the database connection.
 
         setupControls(); // Connects keyboard shortcuts.
         resetLevelObjects(); // Prepares the starting level.
@@ -132,9 +134,11 @@ public class GamePanel extends JPanel { // Main game panel.
     } // Ends togglePause.
 
     private void enterAction() { // Handles Enter depending on the current screen.
-        if (state == State.STORY) state = State.PLAYING; // Starts the adventure.
-        else if (state == State.PAUSED) state = State.PLAYING; // Resumes the game.
-        else if (state == State.LEVEL_COMPLETE && level < 5) { // Continues to the next level.
+        if (state == State.STORY) { // Starts the adventure.
+            startLevel(); // Begins the saved level with full lives and clean objects.
+        } else if (state == State.PAUSED) { // Resumes the game.
+            state = State.PLAYING; // Resumes play.
+        } else if (state == State.LEVEL_COMPLETE && level < 5) { // Continues to the next level.
             level++; // Advances to the next level.
             startLevel(); // Resets the level.
         } else if (state == State.LEVEL_COMPLETE && level == 5) { // Ends the final level.
@@ -150,7 +154,7 @@ public class GamePanel extends JPanel { // Main game panel.
     private void escapeAction() { // Handles Escape.
         if (state == State.PLAYING) state = State.PAUSED; // Pauses active gameplay.
         else if (state == State.PAUSED) state = State.PLAYING; // Resumes gameplay.
-        else if (state == State.STORY) state = State.PLAYING; // Allows skipping the story.
+        else if (state == State.STORY) startLevel(); // Allows skipping the story.
         repaint(); // Redraws the screen.
     } // Ends escapeAction.
 
@@ -299,7 +303,7 @@ public class GamePanel extends JPanel { // Main game panel.
 
         for (Iterator<Obstacle> it = obstacles.iterator(); it.hasNext();) { // Visits every obstacle.
             Obstacle o = it.next(); // Gets the obstacle.
-            int oy = o.overhead ? o.y : o.y; // Uses the obstacle's defined vertical position.
+            int oy = o.y; // Uses the obstacle's defined vertical position.
             boolean hit = px + pw > o.x + 4 && px < o.x + o.width - 4 && py + ph > oy + 4 && py < oy + o.height; // Tests overlap.
 
             if (o.type == 1 && jumping && playerY + PLAYER_H < GROUND - 4) hit = false; // Lets airborne players pass over spikes.

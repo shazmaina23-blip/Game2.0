@@ -1,4 +1,3 @@
-
 package application; // Places this class in the application package.
 
 import java.sql.Connection; // Represents a database connection.
@@ -71,6 +70,14 @@ public class GameDatabase { // Manages all saved game data.
         } // Ends error handling.
 
     } // Ends initialisePlayer.
+
+    public int getCurrentLevel() { // Returns the next level the player should play.
+        int highestCompleted = 0; // Tracks the highest completed level.
+        for (int level = 1; level <= 5; level++) { // Checks all five levels.
+            if (isLevelCompleted(level)) highestCompleted = level; // Records the highest completed level.
+        } // Ends the loop.
+        return Math.min(5, highestCompleted + 1); // Next level to play, capped at 5.
+    } // Ends getCurrentLevel.
 
     public int getCoins() { // Loads the current coin balance.
         try (Connection c = connect(); Statement s = c.createStatement();
